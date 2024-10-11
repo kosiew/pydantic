@@ -17,6 +17,7 @@ from pydantic import (
     BaseModel,
     Field,
     FieldSerializationInfo,
+    Json,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     TypeAdapter,
@@ -247,7 +248,12 @@ def test_serialize_valid_signatures():
             return f'{v:,}'
 
         @field_serializer('f2', mode='wrap')
-        def ser_f2(self, v: Any, nxt: SerializerFunctionWrapHandler, info: FieldSerializationInfo) -> Any:
+        def ser_f2(
+            self,
+            v: Any,
+            nxt: SerializerFunctionWrapHandler,
+            info: FieldSerializationInfo,
+        ) -> Any:
             assert self.f2 == 2_000
             assert v == 2_000
             assert info.field_name == 'f2'
@@ -387,7 +393,10 @@ def test_model_serializer_plain():
     assert m.model_dump(mode='json') == {'a': 1, 'b': 'boom'}
     assert m.model_dump_json() == '{"a":1,"b":"boom"}'
 
-    assert m.model_dump(exclude={'a'}) == {'a': 1, 'b': b'boom'}  # exclude is ignored as we used self.__dict__
+    assert m.model_dump(exclude={'a'}) == {
+        'a': 1,
+        'b': b'boom',
+    }  # exclude is ignored as we used self.__dict__
     assert m.model_dump(mode='json', exclude={'a'}) == {'a': 1, 'b': 'boom'}
     assert m.model_dump_json(exclude={'a'}) == '{"a":1,"b":"boom"}'
 
@@ -455,11 +464,21 @@ def test_model_serializer_wrap_info():
 
     m = MyModel(a=1, b='boom', c='excluded')
     assert m.model_dump() == {'a': 1, 'b': b'boom', 'info': 'mode=python exclude=None'}
-    assert m.model_dump(mode='json') == {'a': 1, 'b': 'boom', 'info': 'mode=json exclude=None'}
+    assert m.model_dump(mode='json') == {
+        'a': 1,
+        'b': 'boom',
+        'info': 'mode=json exclude=None',
+    }
     assert m.model_dump_json() == '{"a":1,"b":"boom","info":"mode=json exclude=None"}'
 
-    assert m.model_dump(exclude={'a'}) == {'b': b'boom', 'info': "mode=python exclude={'a'}"}
-    assert m.model_dump(mode='json', exclude={'a'}) == {'b': 'boom', 'info': "mode=json exclude={'a'}"}
+    assert m.model_dump(exclude={'a'}) == {
+        'b': b'boom',
+        'info': "mode=python exclude={'a'}",
+    }
+    assert m.model_dump(mode='json', exclude={'a'}) == {
+        'b': 'boom',
+        'info': "mode=json exclude={'a'}",
+    }
     assert m.model_dump_json(exclude={'a'}) == '{"b":"boom","info":"mode=json exclude={\'a\'}"}'
 
 
@@ -482,12 +501,14 @@ def test_model_serializer_plain_json_return_type():
     m = MyModel(a=666)
     assert m.model_dump() == {'a': 666}
     with pytest.warns(
-        UserWarning, match='Expected `str` but got `int` with value `666` - serialized value may not be as expected'
+        UserWarning,
+        match='Expected `str` but got `int` with value `666` - serialized value may not be as expected',
     ):
         assert m.model_dump(mode='json') == 666
 
     with pytest.warns(
-        UserWarning, match='Expected `str` but got `int` with value `666` - serialized value may not be as expected'
+        UserWarning,
+        match='Expected `str` but got `int` with value `666` - serialized value may not be as expected',
     ):
         assert m.model_dump_json() == '666'
 
@@ -708,7 +729,10 @@ def test_serializer_allow_reuse_inheritance_override():
 
 
 def test_serializer_allow_reuse_same_field():
-    with pytest.warns(UserWarning, match='`ser_x` overrides an existing Pydantic `@field_serializer` decorator'):
+    with pytest.warns(
+        UserWarning,
+        match='`ser_x` overrides an existing Pydantic `@field_serializer` decorator',
+    ):
 
         class Model(BaseModel):
             x: int
@@ -725,7 +749,10 @@ def test_serializer_allow_reuse_same_field():
 
 
 def test_serializer_allow_reuse_different_field_1():
-    with pytest.warns(UserWarning, match='`ser` overrides an existing Pydantic `@field_serializer` decorator'):
+    with pytest.warns(
+        UserWarning,
+        match='`ser` overrides an existing Pydantic `@field_serializer` decorator',
+    ):
 
         class Model(BaseModel):
             x: int
@@ -743,7 +770,10 @@ def test_serializer_allow_reuse_different_field_1():
 
 
 def test_serializer_allow_reuse_different_field_2():
-    with pytest.warns(UserWarning, match='`ser_x` overrides an existing Pydantic `@field_serializer` decorator'):
+    with pytest.warns(
+        UserWarning,
+        match='`ser_x` overrides an existing Pydantic `@field_serializer` decorator',
+    ):
 
         def ser(self: Any, _v: int, _info: Any) -> str:
             return 'ser'
@@ -762,7 +792,10 @@ def test_serializer_allow_reuse_different_field_2():
 
 
 def test_serializer_allow_reuse_different_field_3():
-    with pytest.warns(UserWarning, match='`ser_x` overrides an existing Pydantic `@field_serializer` decorator'):
+    with pytest.warns(
+        UserWarning,
+        match='`ser_x` overrides an existing Pydantic `@field_serializer` decorator',
+    ):
 
         def ser1(self: Any, _v: int, _info: Any) -> str:
             return 'ser1'
@@ -1038,17 +1071,23 @@ def test_annotated_computed_field_custom_serializer():
 
         @computed_field
         @property
-        def two_x(self) -> Annotated[int, PlainSerializer(lambda v: f'The double of x is {v}', return_type=str)]:
+        def two_x(
+            self,
+        ) -> Annotated[int, PlainSerializer(lambda v: f'The double of x is {v}', return_type=str)]:
             return self.x * 2
 
         @computed_field
         @property
-        def triple_x(self) -> Annotated[int, PlainSerializer(lambda v: f'The triple of x is {v}', return_type=str)]:
+        def triple_x(
+            self,
+        ) -> Annotated[int, PlainSerializer(lambda v: f'The triple of x is {v}', return_type=str)]:
             return self.two_x * 3
 
         @computed_field
         @property
-        def quadruple_x_plus_one(self) -> Annotated[int, PlainSerializer(lambda v: v + 1, return_type=int)]:
+        def quadruple_x_plus_one(
+            self,
+        ) -> Annotated[int, PlainSerializer(lambda v: v + 1, return_type=int)]:
             return self.two_x * 2
 
     m = Model(x=1)
@@ -1079,7 +1118,11 @@ def test_annotated_computed_field_custom_serializer():
             'x': {'title': 'X', 'type': 'integer'},
             'two_x': {'readOnly': True, 'title': 'Two X', 'type': 'string'},
             'triple_x': {'readOnly': True, 'title': 'Triple X', 'type': 'string'},
-            'quadruple_x_plus_one': {'readOnly': True, 'title': 'Quadruple X Plus One', 'type': 'integer'},
+            'quadruple_x_plus_one': {
+                'readOnly': True,
+                'title': 'Quadruple X Plus One',
+                'type': 'integer',
+            },
         },
         'required': ['x', 'two_x', 'triple_x', 'quadruple_x_plus_one'],
         'title': 'Model',
@@ -1147,7 +1190,12 @@ def test_subclass_support_unions() -> None:
     h1 = Home(little_guys=[Pet(name='spot'), Pet(name='buddy')])
     assert h1.model_dump() == {'little_guys': [{'name': 'spot'}, {'name': 'buddy'}]}
 
-    h2 = Home(little_guys=[Dog(name='fluffy', breed='lab'), Dog(name='patches', breed='boxer')])
+    h2 = Home(
+        little_guys=[
+            Dog(name='fluffy', breed='lab'),
+            Dog(name='patches', breed='boxer'),
+        ]
+    )
     assert h2.model_dump() == {'little_guys': [{'name': 'fluffy'}, {'name': 'patches'}]}
 
     # confirming same serialization + validation behavior as for a single list (not a union)
@@ -1280,3 +1328,19 @@ def test_field_serializers_use_enum_ref() -> None:
 
     m = MyModel()
     assert m.model_dump()['computed_a_or_b'] == 'b'
+
+
+# mark this for testing
+@pytest.mark.to_test
+def test_json_field_serialization():
+    class AnyJsonModel(BaseModel):
+        json_obj: Json[Any]
+
+    # The input JSON string
+    data = {'json_obj': '{"a":1}'}
+
+    model = AnyJsonModel(**data)
+    # TypeAdapter is expected to correctly keep the original format
+    expected_serialization = TypeAdapter(Dict[str, Any]).dump_python(data)
+    # The model serializes it to a dictionary instead of a JSON string
+    assert model.model_dump() == expected_serialization, 'Serialization failed to maintain JSON string format'
