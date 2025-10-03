@@ -12,6 +12,15 @@ These rules apply to the entire repository unless a subdirectory provides a more
 - Format and lint Python with Ruff. Run `ruff check --fix <paths>` followed by `ruff format <paths>` on files you touch.
 - Target Python 3.8+ behaviour. Use `typing_extensions` for features that are not available in Python 3.8.
 - Keep public APIs type-safe. Add or update annotations as needed and prefer `from __future__ import annotations` in new modules.
+- **Avoid runtime stack introspection.** Do not use low-level frame inspection APIs such as `sys._getframe()`, `inspect.stack()`, or similar techniques to determine caller information or execution context.  
+  These approaches are:
+  - non-portable (implementation-dependent, fragile across Python versions),
+  - harder to maintain and reason about,
+  - potentially slower and riskier for security.  
+  Instead:
+  - Pass context explicitly via function parameters,
+  - Use structured logging features (`logging` provides caller/module/function metadata),
+  - Or refactor code to make caller intent explicit.
 
 ## Tests
 - Tests are written with `pytest`. Place new tests under `tests/` and give them descriptive names.
@@ -24,3 +33,4 @@ These rules apply to the entire repository unless a subdirectory provides a more
 
 ## Changelog
 - Significant user-facing changes should be recorded in the docs changelog per existing patterns. Follow any instructions in more specific `AGENTS.md` files when editing release notes.
+
