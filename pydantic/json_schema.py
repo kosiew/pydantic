@@ -515,8 +515,13 @@ class GenerateJsonSchema:
                 json_schema = json_schema.copy()
                 json_schema.pop('$defs', None)
 
+            ref_key: str | None = None
             if 'ref' in core_schema:
-                core_ref = CoreRef(core_schema['ref'])  # type: ignore[typeddict-item]
+                ref_key = 'ref'
+            elif core_schema.get('type') == 'definition-ref':
+                ref_key = 'schema_ref'
+            if ref_key is not None:
+                core_ref = CoreRef(core_schema[ref_key])  # type: ignore[typeddict-item]
                 defs_ref, ref_json_schema = self.get_cache_defs_ref_schema(core_ref)
                 json_ref = JsonRef(ref_json_schema['$ref'])
                 original_ref = json_schema.get('$ref')
@@ -582,11 +587,21 @@ class GenerateJsonSchema:
                         deferred_updates = self._deferred_definitions_updates.setdefault(defs_ref, {})
                         for key, value in defs_updates.items():
                             deferred_updates[key] = value
-                json_schema = ref_json_schema
-                if should_keep_wrapper:
-                    _promote_user_ref()
-                else:
-                    _discard_user_ref()
+                replace_with_ref_schema = True
+                if ref_key == 'schema_ref' and original_ref != json_ref:
+                    replace_with_ref_schema = False
+                elif ref_key == 'ref' and original_ref != json_ref and not should_keep_wrapper:
+                    replace_with_ref_schema = False
+
+                if replace_with_ref_schema:
+                    json_schema = ref_json_schema
+                    if extras:
+                        json_schema = json_schema.copy()
+                        json_schema.update(extras)
+                    if should_keep_wrapper:
+                        _promote_user_ref()
+                    else:
+                        _discard_user_ref()
             return json_schema
 
         def handler_func(schema_or_field: CoreSchemaOrField) -> JsonSchemaValue:
@@ -679,10 +694,15 @@ class GenerateJsonSchema:
                 current_handler: GetJsonSchemaHandler = current_handler,
                 js_modify_function: GetJsonSchemaFunction = js_modify_function,
             ) -> JsonSchemaValue:
+                handler_for_user = _schema_generation_shared.GenerateJsonSchemaHandler(
+                    self,
+                    current_handler,
+                    mark_user_definition=True,
+                )
                 previous_flag = self._in_js_modify_function
                 self._in_js_modify_function = True
                 try:
-                    json_schema = js_modify_function(schema_or_field, current_handler)
+                    json_schema = js_modify_function(schema_or_field, handler_for_user)
                 finally:
                     self._in_js_modify_function = previous_flag
                 if _core_utils.is_core_schema(schema_or_field):
