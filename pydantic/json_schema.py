@@ -515,13 +515,8 @@ class GenerateJsonSchema:
                 json_schema = json_schema.copy()
                 json_schema.pop('$defs', None)
 
-            ref_key: str | None = None
             if 'ref' in core_schema:
-                ref_key = 'ref'
-            elif core_schema.get('type') == 'definition-ref':
-                ref_key = 'schema_ref'
-            if ref_key is not None:
-                core_ref = CoreRef(core_schema[ref_key])  # type: ignore[typeddict-item]
+                core_ref = CoreRef(core_schema['ref'])  # type: ignore[typeddict-item]
                 defs_ref, ref_json_schema = self.get_cache_defs_ref_schema(core_ref)
                 json_ref = JsonRef(ref_json_schema['$ref'])
                 original_ref = json_schema.get('$ref')
@@ -588,9 +583,6 @@ class GenerateJsonSchema:
                         for key, value in defs_updates.items():
                             deferred_updates[key] = value
                 json_schema = ref_json_schema
-                if extras:
-                    json_schema = json_schema.copy()
-                    json_schema.update(extras)
                 if should_keep_wrapper:
                     _promote_user_ref()
                 else:
@@ -638,7 +630,7 @@ class GenerateJsonSchema:
         current_handler = _schema_generation_shared.GenerateJsonSchemaHandler(
             self,
             handler_func,
-            mark_user_definition=True,
+            mark_user_definition=False,
         )
 
         metadata = cast(_core_metadata.CoreMetadata, schema.get('metadata', {}))
@@ -657,7 +649,7 @@ class GenerateJsonSchema:
             current_handler = _schema_generation_shared.GenerateJsonSchemaHandler(
                 self,
                 js_updates_handler_func,
-                mark_user_definition=True,
+                mark_user_definition=False,
             )
 
         if js_extra := metadata.get('pydantic_js_extra'):
@@ -677,7 +669,7 @@ class GenerateJsonSchema:
             current_handler = _schema_generation_shared.GenerateJsonSchemaHandler(
                 self,
                 js_extra_handler_func,
-                mark_user_definition=True,
+                mark_user_definition=False,
             )
 
         for js_modify_function in metadata.get('pydantic_js_functions', ()):
